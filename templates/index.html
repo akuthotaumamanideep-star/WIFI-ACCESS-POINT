@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wi-Fi AP Placement | Greedy Maximum Coverage Algorithm</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-wrapper">
+        <!-- TOP NAVBAR -->
+        <header class="navbar">
+            <div class="nav-brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-wifi"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>Wi-Fi AP Placement Optimizer</h1>
+                    <span class="subtext">Design & Analysis of Algorithms &bull; Greedy Maximum Coverage</span>
+                </div>
+            </div>
+
+            <div class="nav-badges">
+                <span class="badge badge-purple" title="Guaranteed theoretical approximation ratio">
+                    <i class="fa-solid fa-shield-halved"></i> Ratio: (1 &minus; 1/e) &approx; 63.2%
+                </span>
+                <span class="badge badge-blue" title="Worst-case time complexity">
+                    <i class="fa-solid fa-stopwatch"></i> Time: <i>O(K &middot; M &middot; N)</i>
+                </span>
+                <span class="badge badge-green" title="Greedy Choice Paradigm">
+                    <i class="fa-solid fa-microchip"></i> Greedy Paradigm
+                </span>
+            </div>
+
+            <div class="nav-actions">
+                <button id="btn-benchmark" class="btn btn-secondary btn-sm" title="Compare against random placement baseline">
+                    <i class="fa-solid fa-chart-line"></i> Benchmark
+                </button>
+                <button id="btn-viva-guide" class="btn btn-primary-outline btn-sm" title="Viva Voce questions & algorithm proofs">
+                    <i class="fa-solid fa-graduation-cap"></i> Viva &amp; Theory
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <main class="main-container">
+            <!-- SIDEBAR CONTROLS -->
+            <aside class="sidebar">
+                <!-- PRESET BUILDINGS -->
+                <div class="card panel-section">
+                    <div class="section-title">
+                        <i class="fa-solid fa-building-columns"></i>
+                        <span>Sample Floor Plans</span>
+                    </div>
+                    <div class="select-wrapper">
+                        <select id="preset-select" class="form-select">
+                            <option value="engineering_l_shape" selected>Engineering Block (L-Shape)</option>
+                            <option value="cs_u_shape">CS &amp; AI Department (U-Shape)</option>
+                            <option value="campus_quad">Academic Quad (4 Clusters)</option>
+                            <option value="custom">Custom Floor Plan</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- INTERACTION MODE -->
+                <div class="card panel-section">
+                    <div class="section-title">
+                        <i class="fa-solid fa-hand-pointer"></i>
+                        <span>Canvas Tool Mode</span>
+                    </div>
+                    <div class="mode-toggles">
+                        <button class="mode-btn active" data-mode="add" id="mode-add-btn" title="Click anywhere on canvas to place a classroom">
+                            <i class="fa-solid fa-plus-circle"></i> Add Room
+                        </button>
+                        <button class="mode-btn" data-mode="move" id="mode-move-btn" title="Click and drag classrooms to reposition them">
+                            <i class="fa-solid fa-up-down-left-right"></i> Move Room
+                        </button>
+                        <button class="mode-btn" data-mode="delete" id="mode-delete-btn" title="Click on a classroom to remove it">
+                            <i class="fa-solid fa-trash-can"></i> Delete Room
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ALGORITHM PARAMETERS -->
+                <div class="card panel-section">
+                    <div class="section-title">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>Algorithm Parameters</span>
+                    </div>
+
+                    <!-- AP Budget (K) -->
+                    <div class="param-group">
+                        <div class="param-header">
+                            <label for="max-aps-slider">Available APs (Budget <i>K</i>):</label>
+                            <span class="param-val-badge" id="max-aps-val">4</span>
+                        </div>
+                        <input type="range" id="max-aps-slider" min="1" max="12" value="4" class="slider">
+                        <span class="param-hint">Max number of Access Points allowed to deploy</span>
+                    </div>
+
+                    <!-- Coverage Radius (R) -->
+                    <div class="param-group">
+                        <div class="param-header">
+                            <label for="radius-slider">Coverage Radius (<i>R</i>):</label>
+                            <span class="param-val-badge" id="radius-val">130 px</span>
+                        </div>
+                        <input type="range" id="radius-slider" min="60" max="220" step="5" value="130" class="slider">
+                        <span class="param-hint">Euclidean radius within which a room is covered</span>
+                    </div>
+
+                    <!-- Candidate Generation Step -->
+                    <div class="param-group">
+                        <div class="param-header">
+                            <label for="candidate-step-select">Candidate Grid Density:</label>
+                        </div>
+                        <select id="candidate-step-select" class="form-select form-select-sm">
+                            <option value="60">Medium (Default - Optimal Speed)</option>
+                            <option value="45">High (Fine Grid - More Candidates)</option>
+                            <option value="80">Low (Coarse Grid - Faster)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- RUN & ACTION BUTTONS -->
+                <div class="card panel-section action-box">
+                    <button id="btn-run-optimization" class="btn btn-glow-primary">
+                        <i class="fa-solid fa-bolt-lightning"></i> Run DAA Optimization
+                    </button>
+                    <div class="btn-group-row">
+                        <button id="btn-step-by-step" class="btn btn-secondary btn-sm" title="Animate each greedy step one by one">
+                            <i class="fa-solid fa-play"></i> Step-by-Step
+                        </button>
+                        <button id="btn-generate-candidates" class="btn btn-secondary btn-sm" title="Recalculate candidate AP positions">
+                            <i class="fa-solid fa-crosshairs"></i> AP Candidates
+                        </button>
+                    </div>
+                    <div class="btn-group-row">
+                        <button id="btn-clear-aps" class="btn btn-light btn-sm" title="Clear placed APs while keeping rooms">
+                            <i class="fa-solid fa-eraser"></i> Clear APs
+                        </button>
+                        <button id="btn-reset-all" class="btn btn-danger-outline btn-sm" title="Reset everything to empty canvas">
+                            <i class="fa-solid fa-rotate-left"></i> Reset All
+                        </button>
+                    </div>
+                </div>
+
+                <!-- LIVE METRICS DASHBOARD -->
+                <div class="card panel-section metrics-section">
+                    <div class="section-title">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>Coverage Dashboard</span>
+                    </div>
+
+                    <!-- Progress Gauge Bar -->
+                    <div class="coverage-bar-container">
+                        <div class="coverage-bar-label">
+                            <span>Coverage Rate</span>
+                            <span class="coverage-bar-pct" id="metric-coverage-pct">0%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" id="metric-progress-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Stat Cards Grid -->
+                    <div class="stat-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Classrooms</div>
+                            <div class="stat-val" id="metric-total-classrooms">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">APs Budget / Used</div>
+                            <div class="stat-val" id="metric-aps-used">0 / 4</div>
+                        </div>
+                        <div class="stat-card stat-success">
+                            <div class="stat-label">Covered Rooms</div>
+                            <div class="stat-val" id="metric-covered-rooms">0</div>
+                        </div>
+                        <div class="stat-card stat-danger">
+                            <div class="stat-label">Uncovered Rooms</div>
+                            <div class="stat-val" id="metric-uncovered-rooms">0</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- FLOOR PLAN CANVAS DISPLAY -->
+            <section class="canvas-area">
+                <!-- TOP CANVAS TOOLBAR -->
+                <div class="canvas-toolbar">
+                    <div class="toolbar-left">
+                        <span class="toolbar-chip">
+                            <i class="fa-solid fa-layer-group"></i>
+                            <span id="canvas-status">Ready</span>
+                        </span>
+                        <span class="toolbar-info" id="canvas-mouse-coords">X: 0, Y: 0</span>
+                    </div>
+
+                    <div class="toolbar-right">
+                        <label class="toggle-control" title="Toggle Blueprint grid lines">
+                            <input type="checkbox" id="toggle-grid" checked>
+                            <span class="toggle-label"><i class="fa-solid fa-border-all"></i> Grid</span>
+                        </label>
+                        <label class="toggle-control" title="Toggle candidate AP markers">
+                            <input type="checkbox" id="toggle-candidates" checked>
+                            <span class="toggle-label"><i class="fa-solid fa-bullseye"></i> Candidates (<span id="cand-count-badge">0</span>)</span>
+                        </label>
+                        <label class="toggle-control" title="Toggle coverage circles">
+                            <input type="checkbox" id="toggle-coverage" checked>
+                            <span class="toggle-label"><i class="fa-solid fa-circle-notch"></i> Coverage</span>
+                        </label>
+                        <label class="toggle-control" title="Toggle connecting rays to covered rooms">
+                            <input type="checkbox" id="toggle-rays" checked>
+                            <span class="toggle-label"><i class="fa-solid fa-network-wired"></i> Rays</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- CANVAS WRAPPER -->
+                <div class="canvas-viewport" id="canvas-container">
+                    <canvas id="floorplan-canvas" width="940" height="560"></canvas>
+                    
+                    <!-- Floating canvas overlay hint -->
+                    <div class="canvas-hint" id="canvas-mode-hint">
+                        <i class="fa-solid fa-circle-info"></i> Click anywhere on the floor plan to place a new classroom.
+                    </div>
+                </div>
+
+                <!-- CANVAS LEGEND -->
+                <div class="canvas-legend">
+                    <div class="legend-item">
+                        <span class="legend-dot dot-covered"></span> Covered Classroom
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-uncovered"></span> Uncovered Classroom
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-ap"></span> Selected Access Point
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-candidate"></span> AP Candidate
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot dot-radius"></span> Coverage Range
+                    </div>
+                </div>
+
+                <!-- GREEDY ITERATION BREAKDOWN PANEL -->
+                <div class="iteration-panel card">
+                    <div class="panel-header">
+                        <div class="panel-header-title">
+                            <i class="fa-solid fa-list-check"></i>
+                            <h3>DAA Greedy Iteration Log &amp; Decision Trace</h3>
+                        </div>
+                        <span class="badge badge-purple" id="step-count-badge">0 Steps Completed</span>
+                    </div>
+
+                    <div class="iteration-timeline" id="iteration-timeline">
+                        <div class="timeline-empty">
+                            <i class="fa-solid fa-arrow-pointer"></i>
+                            <p>Click <strong>"Run DAA Optimization"</strong> or <strong>"Step-by-Step"</strong> to observe how the greedy choice is made at each iteration.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- VIVA & THEORY MODAL -->
+    <div class="modal-backdrop" id="viva-modal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fa-solid fa-book-open-reader"></i>
+                    <h2>DAA Viva Voce &amp; Algorithmic Theory Guide</h2>
+                </div>
+                <button class="modal-close-btn" id="btn-close-viva">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Nav Tabs inside Modal -->
+                <div class="modal-tabs">
+                    <button class="modal-tab active" data-tab="tab-theory">Algorithm Theory</button>
+                    <button class="modal-tab" data-tab="tab-complexity">Complexity Analysis</button>
+                    <button class="modal-tab" data-tab="tab-viva">Top 10 Viva Q&amp;A</button>
+                    <button class="modal-tab" data-tab="tab-pseudocode">Formal Pseudocode</button>
+                </div>
+
+                <!-- Tab 1: Theory -->
+                <div class="tab-pane active" id="tab-theory">
+                    <h3>1. Problem Formulation: Maximum Coverage Problem</h3>
+                    <p>
+                        Let <code>U = {r₁, r₂, ..., rₙ}</code> be the universe of classrooms situated at 2D coordinates.
+                        Let <code>C = {c₁, c₂, ..., c_m}</code> be the set of possible candidate Access Point positions.
+                        For any candidate <code>c ∈ C</code>, its coverage set is defined using Euclidean distance:
+                    </p>
+                    <div class="math-box">
+                        Cover(c) = { r ∈ U &nbsp;|&nbsp; &radic;((x_c - x_r)&sup2; + (y_c - y_r)&sup2;) &le; R }
+                    </div>
+                    <p>
+                        <strong>Optimization Goal:</strong> Select a subset <code>S &sube; C</code> such that <code>|S| &le; K</code> and
+                        <code>|&bigcup;_{c &isin; S} Cover(c)|</code> is maximized.
+                    </p>
+
+                    <h3>2. Why Greedy Approach?</h3>
+                    <ul>
+                        <li><strong>NP-Hardness:</strong> The Maximum Coverage problem is known to be NP-hard. Finding the exact global optimum would require checking all <code>&Cscr;(m, K) = m! / (K!(m-K)!)</code> combinations, which is computationally infeasible for realistic layouts.</li>
+                        <li><strong>Submodular Property:</strong> The coverage function <code>f(S) = |&bigcup;_{c &isin; S} Cover(c)|</code> is monotone and <em>submodular</em> (exhibits diminishing marginal returns).</li>
+                        <li><strong>Theoretical Guarantee:</strong> A famous theorem by <strong>Nemhauser, Wolsey &amp; Fisher (1978)</strong> proves that the Greedy heuristic guarantees an approximation ratio of at least:
+                            <span class="highlight">1 &minus; 1/e &approx; 63.2%</span> of the optimal solution!
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Tab 2: Complexity -->
+                <div class="tab-pane" id="tab-complexity">
+                    <h3>Time Complexity Derivation</h3>
+                    <table class="table-styled">
+                        <thead>
+                            <tr>
+                                <th>Step / Operation</th>
+                                <th>Complexity</th>
+                                <th>Explanation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1. Candidate Generation</td>
+                                <td><code>O(M)</code></td>
+                                <td>Grid sampling and corridor midpoint generation (M candidate locations).</td>
+                            </tr>
+                            <tr>
+                                <td>2. Precomputing Coverage Sets</td>
+                                <td><code>O(M &middot; N)</code></td>
+                                <td>For each of M candidates, measure Euclidean distance to N classrooms.</td>
+                            </tr>
+                            <tr>
+                                <td>3. Greedy Selection Loop</td>
+                                <td><code>O(K &middot; M &middot; N)</code></td>
+                                <td>K iterations. In each iteration, evaluate remaining candidates to find max marginal gain.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Total Worst-Case Time</strong></td>
+                                <td><strong class="highlight">O(K &middot; M &middot; N)</strong></td>
+                                <td>Highly efficient polynomial time! With N=50, M=100, K=5, it takes milliseconds.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Space Complexity Derivation</h3>
+                    <p>
+                        <strong>Total Space Complexity:</strong> <span class="highlight">O(M &middot; N + M + N) = O(M &middot; N)</span>
+                    </p>
+                    <ul>
+                        <li>Storing coverage sets for M candidate APs over N classrooms: <code>O(M &middot; N)</code></li>
+                        <li>Set of covered classrooms and selected APs: <code>O(N + K)</code></li>
+                    </ul>
+                </div>
+
+                <!-- Tab 3: Top 10 Viva Q&A -->
+                <div class="tab-pane" id="tab-viva">
+                    <div class="viva-accordion">
+                        <div class="viva-item">
+                            <div class="viva-question">Q1. What is the Greedy Choice Property used in this project?</div>
+                            <div class="viva-answer">
+                                At every iteration, the algorithm makes the locally optimal choice: it selects the candidate AP that covers the largest number of <em>currently uncovered</em> classrooms (maximum marginal gain), without reconsidering past decisions.
+                            </div>
+                        </div>
+
+                        <div class="viva-item">
+                            <div class="viva-question">Q2. Is the solution always globally optimal?</div>
+                            <div class="viva-answer">
+                                Not necessarily globally optimal, because Maximum Coverage is NP-hard. However, it is mathematically proven to be within <strong>(1 - 1/e) ≈ 63.2%</strong> of the absolute optimal coverage, and in practical network layouts, greedy typically reaches 90% - 98% of the true optimum.
+                            </div>
+                        </div>
+
+                        <div class="viva-item">
+                            <div class="viva-question">Q3. Why not use Dynamic Programming or Brute Force?</div>
+                            <div class="viva-answer">
+                                Brute force tests all C(M, K) combinations, which has exponential complexity <code>O(M^K)</code>. Dynamic programming requires optimal substructure and overlapping subproblems without submodular interference; for 2D spatial geometric set coverage, DP states explode into exponential dimensions.
+                            </div>
+                        </div>
+
+                        <div class="viva-item">
+                            <div class="viva-question">Q4. How are candidate AP locations generated?</div>
+                            <div class="viva-answer">
+                                We combine three practical engineering strategies: (1) A uniform bounding box lattice/grid over the floor plan, (2) Direct classroom ceiling positions, and (3) Corridor midpoints between nearby classroom pairs.
+                            </div>
+                        </div>
+
+                        <div class="viva-item">
+                            <div class="viva-question">Q5. What distance metric is used and why?</div>
+                            <div class="viva-answer">
+                                2D Euclidean distance <code>&radic;((x₂-x₁)&sup2; + (y₂-y₁)&sup2;)</code> is used to model free-space path loss (FSPL) and omnidirectional antenna transmission patterns in an open academic floor plan.
+                            </div>
+                        </div>
+
+                        <div class="viva-item">
+                            <div class="viva-question">Q6. What happens if all classrooms are covered before using all available APs?</div>
+                            <div class="viva-answer">
+                                The algorithm terminates early! If <code>|covered_classrooms| == N</code> or the best marginal gain is 0, no additional APs are deployed, preventing budget waste.
+                            </div>
+                        </div>
+
+                        <div class="viva-item">
+                            <div class="viva-question">Q7. What is submodularity and why does it matter here?</div>
+                            <div class="viva-answer">
+                                A set function f is submodular if adding an element to a smaller set yields at least as much increase as adding it to a larger set (diminishing marginal returns). Because coverage is submodular, the greedy algorithm is guaranteed to approximate the optimum within (1 - 1/e).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 4: Formal Pseudocode -->
+                <div class="tab-pane" id="tab-pseudocode">
+                    <pre class="pseudocode-block">
+<code><span class="kw">Algorithm</span> <span class="fn">GreedyMaxCoverage</span>(U, C, R, K):
+  <span class="comm">// Inputs: U = Classrooms, C = Candidates, R = Radius, K = Max APs</span>
+  <span class="comm">// Output: S = Selected AP locations</span>
+
+  <span class="kw">for each</span> candidate c &isin; C <span class="kw">do</span>:
+      Cover[c] &larr; { r &isin; U | EuclideanDist(c, r) &le; R }
+  <span class="kw">end for</span>
+
+  Covered &larr; &empty;
+  S &larr; &empty;
+
+  <span class="kw">while</span> |S| &lt; K <span class="kw">and</span> |Covered| &lt; |U| <span class="kw">do</span>:
+      bestCandidate &larr; null
+      maxGain &larr; -1
+
+      <span class="kw">for each</span> c &isin; (C \ S) <span class="kw">do</span>:
+          marginalGain &larr; |Cover[c] \ Covered|
+          <span class="kw">if</span> marginalGain &gt; maxGain <span class="kw">then</span>:
+              maxGain &larr; marginalGain
+              bestCandidate &larr; c
+          <span class="kw">end if</span>
+      <span class="kw">end for</span>
+
+      <span class="kw">if</span> maxGain &le; 0 <span class="kw">then</span>:
+          <span class="kw">break</span>   <span class="comm">// No candidate can cover any more rooms</span>
+      <span class="kw">end if</span>
+
+      S &larr; S &cup; {bestCandidate}
+      Covered &larr; Covered &cup; Cover[bestCandidate]
+  <span class="kw">end while</span>
+
+  <span class="kw">return</span> S, Covered</code></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btn-close-viva-footer">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BENCHMARK MODAL -->
+    <div class="modal-backdrop" id="benchmark-modal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    <h2>Greedy Algorithm vs. Random Baseline Benchmark</h2>
+                </div>
+                <button class="modal-close-btn" id="btn-close-bench">&times;</button>
+            </div>
+            <div class="modal-body" id="benchmark-body">
+                <p>Comparing the optimized Greedy Placement against a 20-trial Random AP Deployment baseline...</p>
+                <div class="spinner-container" id="benchmark-spinner">
+                    <div class="spinner"></div>
+                </div>
+                <div id="benchmark-results" style="display: none;">
+                    <div class="benchmark-cards">
+                        <div class="bench-card bench-card-greedy">
+                            <div class="bench-badge">DAA Algorithm</div>
+                            <h4>Greedy Max Coverage</h4>
+                            <div class="bench-stat" id="bench-greedy-pct">0%</div>
+                            <div class="bench-sub" id="bench-greedy-rooms">0 rooms covered</div>
+                        </div>
+                        <div class="bench-vs">VS</div>
+                        <div class="bench-card bench-card-random">
+                            <div class="bench-badge">Baseline Heuristic</div>
+                            <h4>Random Deployment</h4>
+                            <div class="bench-stat" id="bench-random-pct">0%</div>
+                            <div class="bench-sub" id="bench-random-rooms">Avg 0 rooms (20 trials)</div>
+                        </div>
+                    </div>
+
+                    <div class="bench-summary-banner" id="bench-advantage-banner">
+                        <i class="fa-solid fa-trophy"></i>
+                        <span>Greedy placement outperforms random placement by <strong>+0%</strong> coverage!</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btn-close-bench-footer">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- SCRIPTS -->
+    <script src="/static/js/script.js"></script>
+</body>
+</html>
